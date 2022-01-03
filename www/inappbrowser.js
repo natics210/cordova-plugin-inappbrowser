@@ -17,15 +17,9 @@
  * specific language governing permissions and limitations
  * under the License.
  *
-*/
+ */
 
 (function () {
-    // special patch to correctly work on Ripple emulator (CB-9760)
-    if (window.parent && !!window.parent.ripple) { // https://gist.github.com/triceam/4658021
-        module.exports = window.open.bind(window); // fallback to default window.open behaviour
-        return;
-    }
-
     var exec = require('cordova/exec');
     var channel = require('cordova/channel');
     var modulemapper = require('cordova/modulemapper');
@@ -33,19 +27,19 @@
 
     function InAppBrowser () {
         this.channels = {
-            'beforeload': channel.create('beforeload'),
-            'loadstart': channel.create('loadstart'),
-            'loadstop': channel.create('loadstop'),
-            'loaderror': channel.create('loaderror'),
-            'exit': channel.create('exit'),
-            'customscheme': channel.create('customscheme'),
-            'message': channel.create('message')
+            beforeload: channel.create('beforeload'),
+            loadstart: channel.create('loadstart'),
+            loadstop: channel.create('loadstop'),
+            loaderror: channel.create('loaderror'),
+            exit: channel.create('exit'),
+            customscheme: channel.create('customscheme'),
+            message: channel.create('message')
         };
     }
 
     InAppBrowser.prototype = {
         _eventHandler: function (event) {
-            if (event && (event.type in this.channels)) {
+            if (event && event.type in this.channels) {
                 if (event.type === 'beforeload') {
                     this.channels[event.type].fire(event, this._loadAfterBeforeload);
                 } else {
@@ -98,7 +92,9 @@
         }
     };
 
-    module.exports = function (strUrl, strWindowName, strWindowFeatures, callbacks) {
+    // module.exports = function (strUrl, strWindowName, strWindowFeatures, callbacks) {
+        //Todo Added
+        module.exports = function (strUrl, strWindowName, strWindowFeatures, windowHeaders, callbacks) {
         // Don't catch calls that write to existing frames (e.g. named iframes).
         if (window.frames && window.frames[strWindowName]) {
             var origOpenFunc = modulemapper.getOriginalSymbol(window, 'open');
@@ -117,9 +113,31 @@
             iab._eventHandler(eventname);
         };
 
-        strWindowFeatures = strWindowFeatures || '';
+        //Todo Added
+        var strWindowHeaders = '';
+        if (windowHeaders) {
+            if (typeof windowHeaders === 'string' || windowHeaders instanceof String) {
+                strWindowHeaders = windowHeaders.replace(/@/gi, '@a');
+            } else {
+                var first = true;
+                for (var k in windowHeaders) {
+                    if (windowHeaders.hasOwnProperty(k)) {
+                        var key = k.replace(/@/gi, '@a').replace(/,/gi, '@c').replace(/=/gi, '@e');
+                        var value = windowHeaders[k].toString().replace(/@/gi, '@a').replace(/,/gi, '@c').replace(/=/gi, '@e');
+                        if (first) {
+                            first = false;
+                        } else {
+                            strWindowHeaders += ',';
+                        }
+                        strWindowHeaders += key + '=' + value;
+                    }
+                }
+            }
+        }
 
-        exec(cb, cb, 'InAppBrowser', 'open', [strUrl, strWindowName, strWindowFeatures]);
+        strWindowFeatures = strWindowFeatures || '';
+        exec(cb, cb, 'InAppBrowser', 'open', [strUrl, strWindowName, strWindowFeatures, strWindowHeaders]);
+        //exec(cb, cb, 'InAppBrowser', 'open', [strUrl, strWindowName, strWindowFeatures]);
         return iab;
     };
 })();
